@@ -77,9 +77,9 @@ inline double rad2deg(double x) { return x * 180 / pi(); }
  }
 
  inline double checkMaxD(double d){
-   double max_d = NUMBER_OF_LANES*LANE_WIDTH;
-	 if(d>= 0 && d <= max_d) return d;
-	 if(d <= 0) return 0;
+   double max_d = NUMBER_OF_LANES*LANE_WIDTH - 1.5;
+	 if(d>= 1.5 && d <= max_d) return d;
+	 if(d <= 1.5) return 1.5;
    if(d >= max_d) return max_d;
 
     return d;
