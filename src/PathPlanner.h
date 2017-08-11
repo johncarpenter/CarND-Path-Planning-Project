@@ -34,6 +34,7 @@ class PathPlanner {
    double prev_s;
   double prev_d;
   double prev_v; 
+  bool initialized = false;
 
  public:
   // Coordinates and mapping for the drive space

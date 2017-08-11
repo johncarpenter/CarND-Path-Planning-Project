@@ -55,6 +55,7 @@ class World {
   std::vector<double> getFrenet(double x, double y, double theta);
   std::vector<double> getXY(double s, double d);
   std::vector<double> getXY_nearest(double s, double d);
+  void padSplines();
 
 
 };

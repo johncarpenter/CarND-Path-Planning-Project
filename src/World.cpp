@@ -146,13 +146,34 @@ vector<double> World::getFrenet(double x, double y, double theta)
 
 }
 
+void World::padSplines(){
+
+	for(int i=0;i<10;i++){
+		maps_s.push_back(maps_s[i]+max_s);
+		maps_x.push_back(maps_x[i]);
+		maps_y.push_back(maps_y[i]);
+		maps_dx.push_back(maps_dx[i]);
+		maps_dy.push_back(maps_dy[i]);
+	}
+  
+	  spline_x.set_points(maps_s, maps_x);
+	  spline_y.set_points(maps_s, maps_y);
+	  spline_dx.set_points(maps_s, maps_dx);
+	  spline_dy.set_points(maps_s, maps_dy);
+
+}
+
 // Transform from Frenet s,d coordinates to Cartesian x,y
 vector<double> World::getXY(double s, double d)
 {
 	s = checkMaxS(s);
 
-	const double x = spline_x(s) + spline_dx(s) * d;
-	const double y = spline_y(s) + spline_dy(s) * d;
+	if(s < 30){
+		s+= max_s;
+	}
+
+	const double x = spline_x(s) + spline_dx(s) * (d-0.2);
+	const double y = spline_y(s) + spline_dy(s) * (d-0.2);
 
 	return {x,y};
 

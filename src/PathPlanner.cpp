@@ -21,6 +21,7 @@ PathPlanner::PathPlanner(const std::string &map_file_) : map_(map_file_) {
 	prev_v = 0; 
 	prev_s = 0; 
 	prev_d = 0;
+	initialized=false;
 }
 PathPlanner::~PathPlanner() {}
 
@@ -51,9 +52,12 @@ void PathPlanner::updateOtherCarPositions(int id, double x, double y, double s, 
 void PathPlanner::generatePlan( const std::vector<double> &previous_path_x,
 		const std::vector<double> &previous_path_y,double end_path_s,double end_path_d){
 
-				
-		if(prev_s < 1) prev_s = car_.s_;
-		if(prev_d == 0) prev_d = car_.d_;
+		if(!initialized){
+			prev_s = car_.s_; 
+			prev_d = car_.d_;
+			initialized = true; 
+			map_.padSplines();
+		}
 
 		// Set initial or use previous states
 		next_x_vals.clear();
