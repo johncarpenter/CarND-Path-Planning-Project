@@ -1,27 +1,51 @@
+/**
+* Copyright 2017 2Lines Software Inc
+*
+* Licensed under the Apache License, Version 2.0 (the "License");
+* you may not use this file except in compliance with the License.
+* You may obtain a copy of the License at
+*
+*    http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing, software
+* distributed under the License is distributed on an "AS IS" BASIS,
+* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+* See the License for the specific language governing permissions and
+* limitations under the License.
+**/
 #include "TrajectoryPlanner.h"
 
+using namespace pathplanner;
+
 TrajectoryPlanner::TrajectoryPlanner(){
-    adjustTargetSpeed(0,TARGET_MAX_VEL,0);
-    adjustTargetLane(INITIAL_LANE,INITIAL_LANE,0);
+    jmt_v.completed = true;
+    jmt_d.completed = true;
+    jmt_d.finish = getLaneCenter(INITIAL_LANE);
+    
 };
 TrajectoryPlanner::~TrajectoryPlanner(){};
 
 
-void TrajectoryPlanner::generateGoals(World &map,Car car, vector<Car> nearby_cars, double prev_s, double prev_d, double prev_v ){
+void TrajectoryPlanner::generateGoals(World &map,Car car, vector<Car> nearby_cars, double prev_v, double prev_s){
 
-    BehaviorState behavior = getMinimumCostBehavior(car, nearby_cars);
+    // Check if a behavior is in progress
+    if(jmt_d.completed && jmt_v.completed){
+    
+        current_state = getMinimumCostBehavior(car, nearby_cars);
 
-        switch(behavior){
-            case KL:
-                applyKeepLaneBehavior(car,nearby_cars);
+        switch(current_state){
+            case KL: 
+                applyKeepLaneBehavior(prev_v,car,nearby_cars);
                 return;
             case LCL:
+                
                 applyLaneChange(car.lane_-1,car,nearby_cars);
             break;
             case LCR:
                 applyLaneChange(car.lane_+1,car,nearby_cars);
             break;
         }
+    }
 
 
 }
@@ -35,13 +59,13 @@ BehaviorState TrajectoryPlanner::getMinimumCostBehavior(Car car, vector<Car> nea
   
     double lcl_cost = 1;
     if(car.lane_ != 0){
-        lcl_cost = calculateLaneChangeCost(car.lane_,car.lane_-1,car,nearby_cars);
+        lcl_cost = calculateLaneChangeCost(car.lane_,car.lane_-1,car,nearby_cars)+0.05;
     }
     costs.push_back(lcl_cost);
 
     double rcl_cost = 1;
     if(car.lane_ != 2){
-        rcl_cost = calculateLaneChangeCost(car.lane_,car.lane_+1,car,nearby_cars);
+        rcl_cost = calculateLaneChangeCost(car.lane_,car.lane_+1,car,nearby_cars)-0.05;
     }
     costs.push_back(rcl_cost);
 
@@ -78,7 +102,12 @@ double TrajectoryPlanner::calculateLaneChangeCost(int from_lane, int to_lane, Ca
         return 1; 
     }
 
-    return logistic(TARGET_MAX_VEL/getLaneSpeed(to_lane,car,nearby_cars))+0.05;
+    // check to see if you are even moving
+    if(car.speed_ < 5){
+        return 1; 
+    }
+
+    return logistic(TARGET_MAX_VEL/getLaneSpeed(to_lane,car,nearby_cars));
 
 }
 
@@ -96,26 +125,46 @@ double TrajectoryPlanner::calculateLaneChangeCost(int from_lane, int to_lane, Ca
 
 void TrajectoryPlanner::applyLaneChange(int to_lane, Car car, vector<Car> nearby_cars){
     if(to_lane != getLaneNumber(jmt_d.finish)){
+        cout << "Applying lane change from "<<car.lane_<< " to " << to_lane <<"\n";
         double lane_speed = getLaneSpeed(to_lane,car,nearby_cars);
         adjustTargetSpeed(car.speed_,lane_speed,0);
         adjustTargetLane(car.lane_,to_lane,0);
     }
-    
-   
 }
 
-void TrajectoryPlanner::applyKeepLaneBehavior(Car car, vector<Car> nearby_cars){
-    double lane_speed = getLaneSpeed(car.lane_,car,nearby_cars);
+void TrajectoryPlanner::applyKeepLaneBehavior(double current_speed, Car car, vector<Car> nearby_cars){
+    
+    vector<Car> infront = filterCarsInFrontOf(nearby_cars,car.s_);
+    vector<Car> nearbyInLane = filterCarsByLane(infront,car.lane_);
+    sortCarsByDistance(nearbyInLane);
 
-    double targetDiff = fabs(lane_speed - jmt_v.finish);
-    if(targetDiff > 0.5){
-        adjustTargetSpeed(car.speed_,lane_speed,0);
-    }    
+    double min_dist = car.speed_ * 2; 
+
+    double target_speed = TARGET_MAX_VEL;
+
+    if(nearbyInLane.size() > 0 && nearbyInLane[0].distance < min_dist) {
+
+        target_speed = nearbyInLane[0].speed_;
+
+        if(nearbyInLane[0].distance < 10){
+            cout << "Whoaa\n";
+            target_speed -= 5; //eeeeerrrch
+        }
+    }
+
+     double targetDiff = fabs(target_speed - jmt_v.finish);
+        if(targetDiff > 1.0){
+            adjustTargetSpeed(current_speed,target_speed,0);
+        }
+    
+    
+     
 }
 
 double TrajectoryPlanner::getDeltaV(double t){
 
-    if(jmt_v.duration <= t){
+    if(t >= jmt_v.duration){
+        jmt_v.completed = true;
         return jmt_v.finish;
     }
     
@@ -127,6 +176,7 @@ double TrajectoryPlanner::getDeltaV(double t){
 double TrajectoryPlanner::getDeltaD(double t){
 
     if(jmt_d.duration <= t){
+        jmt_d.completed = true;
         return adjustToCenterOfLane(jmt_d.finish);
     }
 
@@ -137,12 +187,13 @@ double TrajectoryPlanner::getDeltaD(double t){
 
 void TrajectoryPlanner::adjustTargetSpeed(double currentSpeed, double targetSpeed, double deltaT){
        
-        cout << "Adjusting Speed from: " << currentSpeed <<"m/s to :" << targetSpeed << " m/s \n";
-
-       //targetSpeed = (targetSpeed > TARGET_MAX_VEL)? TARGET_MAX_VEL:targetSpeed; 
+   
+       targetSpeed = (targetSpeed > TARGET_MAX_VEL)? TARGET_MAX_VEL:targetSpeed; 
 
        double max = fabs(targetSpeed-currentSpeed)/TARGET_ACCEL;
        deltaT = (deltaT == 0 || deltaT > max)?max:deltaT;
+     
+       cout << "Adjusting Speed from: " << currentSpeed <<"m/s to :" << targetSpeed << " m/s  in "<<deltaT<<"s \n";
 
 
        jmt_v.jmt =  JMT({currentSpeed,0,0},{targetSpeed,0,0},deltaT);
@@ -150,14 +201,14 @@ void TrajectoryPlanner::adjustTargetSpeed(double currentSpeed, double targetSpee
        jmt_v.finish = targetSpeed; 
        jmt_v.duration = deltaT;
        jmt_v.direction = (targetSpeed > currentSpeed)?1:-1;
+       jmt_v.completed = false;
 
        jmt_v_time = 0;
 }
 
 void TrajectoryPlanner::adjustTargetLane(int currentLane, int targetLane, double deltaT){
 
-       cout << "Changing lane to :" << targetLane << " \n";
-
+    
        jmt_d_time = 0; 
 
        if(currentLane == targetLane){
@@ -170,6 +221,7 @@ void TrajectoryPlanner::adjustTargetLane(int currentLane, int targetLane, double
        jmt_d.finish = getLaneCenter(targetLane); 
        jmt_d.duration = deltaT;
        jmt_d.direction = (currentLane > targetLane)?1:-1;
+       jmt_d.completed = false;
 }
 
 

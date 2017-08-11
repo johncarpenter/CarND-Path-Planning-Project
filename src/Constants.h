@@ -1,7 +1,24 @@
+/**
+* Copyright 2017 2Lines Software Inc
+*
+* Licensed under the Apache License, Version 2.0 (the "License");
+* you may not use this file except in compliance with the License.
+* You may obtain a copy of the License at
+*
+*    http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing, software
+* distributed under the License is distributed on an "AS IS" BASIS,
+* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+* See the License for the specific language governing permissions and
+* limitations under the License.
+**/
 #ifndef CONSTANTS_H
 #define CONSTANTS_H
 
 #include <math.h>
+
+namespace pathplanner{
 
 // Simulator Constants
  const int NUMBER_OF_LANES = 3; 
@@ -12,7 +29,7 @@
 // Car Considerations
 
 const double MAX_ACCEL = 10; // m/s^2
-const double TARGET_ACCEL = 3; // m/s^2
+const double TARGET_ACCEL = 4; // m/s^2
 
 const double MAX_JERK = 50; //m/s^3
 
@@ -62,8 +79,8 @@ inline double rad2deg(double x) { return x * 180 / pi(); }
  inline double checkMaxD(double d){
    double max_d = NUMBER_OF_LANES*LANE_WIDTH;
 	 if(d>= 0 && d <= max_d) return d;
-	 if(d >= 0) return 0;
-   if(d<= max_d) return max_d;
+	 if(d <= 0) return 0;
+   if(d >= max_d) return max_d;
 
     return d;
  }
@@ -109,5 +126,5 @@ inline double logistic(double x){
 
 }
 
-
+}// namespace
 #endif /* CONSTANTS_H */

@@ -1,9 +1,27 @@
-
+/**
+* Copyright 2017 2Lines Software Inc
+*
+* Licensed under the Apache License, Version 2.0 (the "License");
+* you may not use this file except in compliance with the License.
+* You may obtain a copy of the License at
+*
+*    http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing, software
+* distributed under the License is distributed on an "AS IS" BASIS,
+* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+* See the License for the specific language governing permissions and
+* limitations under the License.
+**/
 #include "PathPlanner.h"
 
 #include "Constants.h"
-
-PathPlanner::PathPlanner(const std::string &map_file_) : map_(map_file_) {}
+using namespace pathplanner;
+PathPlanner::PathPlanner(const std::string &map_file_) : map_(map_file_) {
+	prev_v = 0; 
+	prev_s = 0; 
+	prev_d = 0;
+}
 PathPlanner::~PathPlanner() {}
 
 
@@ -34,8 +52,8 @@ void PathPlanner::generatePlan( const std::vector<double> &previous_path_x,
 		const std::vector<double> &previous_path_y,double end_path_s,double end_path_d){
 
 				
-		if(prev_s == 0) prev_s = car_.s_;
-		if(prev_d == 0) prev_d = adjustToCenterOfLane(car_.d_);
+		if(prev_s < 1) prev_s = car_.s_;
+		if(prev_d == 0) prev_d = car_.d_;
 
 		// Set initial or use previous states
 		next_x_vals.clear();
@@ -54,7 +72,7 @@ void PathPlanner::generatePlan( const std::vector<double> &previous_path_x,
 		// Update behavior
 		//car_.dump();
 	
-		trajectory_planner.generateGoals(map_,car_,findNearbyCars(car_.s_),  prev_s,  prev_d,  prev_v);
+		trajectory_planner.generateGoals(map_,car_,findNearbyCars(car_.s_),prev_v,prev_s);
 
 		interpolatePath();
 }
@@ -77,11 +95,15 @@ void PathPlanner::interpolatePath(){
 
 		prev_s = prev_s + prev_v * t;
 
+		prev_s = checkMaxS(prev_s);
+
 		trajectory_planner.jmt_d_time += t;
 		prev_d = trajectory_planner.getDeltaD(trajectory_planner.jmt_d_time);
-		
-	
 
+		prev_d = checkMaxD(prev_d);
+
+		//cout <<"s:"<<prev_s<<" d:"<<prev_d<<" v:"<<prev_v<<"\n";
+	
 		// Map to spline
 		new_xy = map_.getXY(prev_s,prev_d);
 		next_x_vals.push_back(new_xy[0]);
