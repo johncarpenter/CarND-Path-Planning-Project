@@ -155,7 +155,7 @@ void World::padSplines(){
 		maps_dx.push_back(maps_dx[i]);
 		maps_dy.push_back(maps_dy[i]);
 	}
-  
+
 	  spline_x.set_points(maps_s, maps_x);
 	  spline_y.set_points(maps_s, maps_y);
 	  spline_dx.set_points(maps_s, maps_dx);
@@ -168,6 +168,7 @@ vector<double> World::getXY(double s, double d)
 {
 	s = checkMaxS(s);
 
+  // This handles the spline padding. 
 	if(s < 30){
 		s+= max_s;
 	}
@@ -206,5 +207,3 @@ vector<double> World::getXY_nearest(double s, double d)
 	return {x,y};
 
 }
-
-

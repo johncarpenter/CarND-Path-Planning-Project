@@ -148,7 +148,7 @@ void TrajectoryPlanner::applyKeepLaneBehavior(double current_speed, Car car, vec
 
         if(nearbyInLane[0].distance < 10){
             cout << "Whoaa\n";
-            target_speed -= 5; //eeeeerrrch
+            target_speed = 0; //eeeeerrrch
         }
     }
 

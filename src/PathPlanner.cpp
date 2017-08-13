@@ -18,8 +18,8 @@
 #include "Constants.h"
 using namespace pathplanner;
 PathPlanner::PathPlanner(const std::string &map_file_) : map_(map_file_) {
-	prev_v = 0; 
-	prev_s = 0; 
+	prev_v = 0;
+	prev_s = 0;
 	prev_d = 0;
 	initialized=false;
 }
@@ -28,7 +28,7 @@ PathPlanner::~PathPlanner() {}
 
 void PathPlanner::updateCarPosition(double x, double y, double s, double d, double yaw, double speed){
 		car_.update(x,y,s,d,0,0);
-		car_.yaw_ = yaw; 
+		car_.yaw_ = yaw;
 		car_.speed_ = mph2ms(speed);
 }
 
@@ -53,16 +53,16 @@ void PathPlanner::generatePlan( const std::vector<double> &previous_path_x,
 		const std::vector<double> &previous_path_y,double end_path_s,double end_path_d){
 
 		if(!initialized){
-			prev_s = car_.s_; 
+			prev_s = car_.s_;
 			prev_d = car_.d_;
-			initialized = true; 
+			initialized = true;
 			map_.padSplines();
 		}
 
 		// Set initial or use previous states
 		next_x_vals.clear();
 		next_y_vals.clear();
-		
+
 
 		int path_size = previous_path_x.size();
 		for (int i = 0; i < path_size; i++)
@@ -75,26 +75,26 @@ void PathPlanner::generatePlan( const std::vector<double> &previous_path_x,
 
 		// Update behavior
 		//car_.dump();
-	
+
 		trajectory_planner.generateGoals(map_,car_,findNearbyCars(car_.s_),prev_v,prev_s);
 
 		interpolatePath();
 }
 
 /**
-*  
+*
 *
 */
 void PathPlanner::interpolatePath(){
- 
+
 	double t = SAMPLING_RATE; // predict out t seconds
 	vector<double> new_xy;
-	while(next_x_vals.size() < 40)
+	while(next_x_vals.size() < 20)
 	{
-	
+
 		trajectory_planner.jmt_v_time += t;
 		prev_v = trajectory_planner.getDeltaV(trajectory_planner.jmt_v_time);
-		
+
 		prev_v = (prev_v > TARGET_MAX_VEL)?TARGET_MAX_VEL:prev_v;
 
 		prev_s = prev_s + prev_v * t;
@@ -107,25 +107,25 @@ void PathPlanner::interpolatePath(){
 		prev_d = checkMaxD(prev_d);
 
 		//cout <<"s:"<<prev_s<<" d:"<<prev_d<<" v:"<<prev_v<<"\n";
-	
+
 		// Map to spline
 		new_xy = map_.getXY(prev_s,prev_d);
 		next_x_vals.push_back(new_xy[0]);
-		next_y_vals.push_back(new_xy[1]);	
+		next_y_vals.push_back(new_xy[1]);
 	}
 
-	
+
 }
 
 
 vector<Car> PathPlanner::findNearbyCars(double s_orig){
 
-	vector<Car> cars;  
+	vector<Car> cars;
 
 	for (auto const& x : other_cars_)
 	{
 		Car t_car = x.second;
-		
+
 		if(t_car.distance < 100){
 			cars.push_back(t_car);
 		}
@@ -134,6 +134,3 @@ vector<Car> PathPlanner::findNearbyCars(double s_orig){
 	return cars;
 
 }
-
-
-
